@@ -1,0 +1,30 @@
+---
+- name: Check if log is persistent
+  shell: "grep -Fix 'Storage=persistent' /etc/systemd/journald.conf"
+  register: persistent_check
+  failed_when: persistent_check.rc >= 2
+
+- name: Set log to persistent
+  replace:
+    path: /etc/systemd/journald.conf
+    regexp: '#[s|S]torage=auto|#[s|S]torage=persistent'
+    replace: 'Storage=persistent'
+  when: persistent_check.rc >= 1
+
+- name: Verify that persitent configuration change worked
+  shell: "grep -Fix 'Storage=persistent' /etc/systemd/journald.conf"
+  when: persistent_check.rc >= 1
+
+- name: Create persitent log directory
+  file:
+    path: /var/log/journal
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+
+- name: Restart systemd-journald
+  service:
+    name: systemd-journald
+    state: restarted
+  when: persistent_check.rc >= 1
